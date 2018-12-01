@@ -31,6 +31,9 @@
   Version Date      Action    Description
   --------------------------------------------------------------------------------------------
 
+  1.0.0.3 20181006  fixed     - missing "" around the UV Index text 
+                              - thanks to Lisa she had tested it on here mqtt system.
+  --
   1.0.0.2 20180928  tests     - same as in version 1.0.0.1
                     cleaned   - source code
                     changed   - snprintf_P for json and web server output
@@ -77,9 +80,9 @@
                               - show not only the UV Power value in W/m2, possible a @define value to show it as joule value
                               - add a #define to select how many characters are shown benhind the decimal point for the UV Index
   ---
-  1.0.0.0 20180912  started - further development by mike2nl  - https://github.com/mike2nl/Sonoff-Tasmota
-                    forked  - from arendst/tasmota            - https://github.com/arendst/Sonoff-Tasmota
-                    base    - code base from arendst too
+  1.0.0.0 20180912  started   - further development by mike2nl  - https://github.com/mike2nl/Sonoff-Tasmota
+                    forked    - from arendst/tasmota            - https://github.com/arendst/Sonoff-Tasmota
+                    base      - code base from arendst too
 
 */
 
@@ -90,6 +93,8 @@
  *
  * I2C Address: 0x38 and 0x39
 \*********************************************************************************************/
+
+#define XSNS_11                     11
 
 #define VEML6070_ADDR_H             0x39            // on some PCB boards the address can be changed by a solder point,
 #define VEML6070_ADDR_L             0x38            // to have no address conflicts with other I2C sensors and/or hardware
@@ -168,11 +173,11 @@ void Veml6070EverySecond(void)
 {
   // all = 10..15[ms]
   if (11 == (uptime %100)) {
-    Veml6070ModeCmd(1);			      // on = 1[ms], wakeup the UV sensor
+    Veml6070ModeCmd(1);			                  // on = 1[ms], wakeup the UV sensor
     Veml6070Detect();                         // 1[ms], check for sensor and init with IT time
     Veml6070ModeCmd(0);                       // off = 5[ms], suspend the UV sensor
   } else {
-    Veml6070ModeCmd(1);			      // 1[ms], wakeup the UV sensor
+    Veml6070ModeCmd(1);			                  // 1[ms], wakeup the UV sensor
     uvlevel = Veml6070ReadUv();               // 1..2[ms], get UV raw values
     uvrisk  = Veml6070UvRiskLevel(uvlevel);   // 0..1[ms], get UV risk level
     uvpower = Veml6070UvPower(uvrisk);        // 2[ms], get UV power in W/m2
@@ -277,10 +282,10 @@ void Veml6070Show(boolean json)
     dtostrfd(uvpower, 3, str_uvpower);
     if (json) {
 #ifdef USE_VEML6070_SHOW_RAW
-      snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("%s,\"%s\":{\"" D_JSON_UV_LEVEL "\":%s,\"" D_JSON_UV_INDEX "\":%s,\"" D_JSON_UV_INDEX_TEXT "\":%s,\"" D_JSON_UV_POWER "\":%s}"),
+      snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("%s,\"%s\":{\"" D_JSON_UV_LEVEL "\":%s,\"" D_JSON_UV_INDEX "\":%s,\"" D_JSON_UV_INDEX_TEXT "\":\"%s\",\"" D_JSON_UV_POWER "\":%s}"),
         mqtt_data, veml6070_name, str_uvlevel, str_uvrisk, str_uvrisk_text, str_uvpower);
 #else
-      snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("%s,\"%s\":{\"" D_JSON_UV_INDEX "\":%s,\"" D_JSON_UV_INDEX_TEXT "\":%s,\"" D_JSON_UV_POWER "\":%s}"),
+      snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("%s,\"%s\":{\"" D_JSON_UV_INDEX "\":%s,\"" D_JSON_UV_INDEX_TEXT "\":\"%s\",\"" D_JSON_UV_POWER "\":%s}"),
         mqtt_data, veml6070_name, str_uvrisk, str_uvrisk_text, str_uvpower);
 #endif  // USE_VEML6070_SHOW_RAW
 #ifdef USE_DOMOTICZ
@@ -301,8 +306,6 @@ void Veml6070Show(boolean json)
 /*********************************************************************************************\
  * Interface
 \*********************************************************************************************/
-
-#define XSNS_11
 
 boolean Xsns11(byte function)
 {

@@ -63,6 +63,8 @@
  *     RuleTimer2 100
 \*********************************************************************************************/
 
+#define XDRV_10             10
+
 #define D_CMND_RULE "Rule"
 #define D_CMND_RULETIMER "RuleTimer"
 #define D_CMND_EVENT "Event"
@@ -72,17 +74,19 @@
 #define D_CMND_SUB "Sub"
 #define D_CMND_MULT "Mult"
 #define D_CMND_SCALE "Scale"
+#define D_CMND_CALC_RESOLUTION "CalcRes"
 
 #define D_JSON_INITIATED "Initiated"
 
-enum RulesCommands { CMND_RULE, CMND_RULETIMER, CMND_EVENT, CMND_VAR, CMND_MEM, CMND_ADD, CMND_SUB, CMND_MULT, CMND_SCALE };
-const char kRulesCommands[] PROGMEM = D_CMND_RULE "|" D_CMND_RULETIMER "|" D_CMND_EVENT "|" D_CMND_VAR "|" D_CMND_MEM "|" D_CMND_ADD "|" D_CMND_SUB "|" D_CMND_MULT "|" D_CMND_SCALE ;
+enum RulesCommands { CMND_RULE, CMND_RULETIMER, CMND_EVENT, CMND_VAR, CMND_MEM, CMND_ADD, CMND_SUB, CMND_MULT, CMND_SCALE, CMND_CALC_RESOLUTION };
+const char kRulesCommands[] PROGMEM = D_CMND_RULE "|" D_CMND_RULETIMER "|" D_CMND_EVENT "|" D_CMND_VAR "|" D_CMND_MEM "|" D_CMND_ADD "|" D_CMND_SUB "|" D_CMND_MULT "|" D_CMND_SCALE "|" D_CMND_CALC_RESOLUTION ;
 
 String rules_event_value;
 unsigned long rules_timer[MAX_RULE_TIMERS] = { 0 };
 uint8_t rules_quota = 0;
 long rules_new_power = -1;
 long rules_old_power = -1;
+long rules_old_dimm = -1;
 
 uint32_t rules_triggers[MAX_RULE_SETS] = { 0 };
 uint16_t rules_last_minute = 60;
@@ -344,12 +348,12 @@ bool RulesProcessEvent(char *json_event)
   return serviced;
 }
 
-bool RulesProcess()
+bool RulesProcess(void)
 {
   return RulesProcessEvent(mqtt_data);
 }
 
-void RulesInit()
+void RulesInit(void)
 {
   rules_flag.data = 0;
   for (byte i = 0; i < MAX_RULE_SETS; i++) {
@@ -361,7 +365,7 @@ void RulesInit()
   rules_teleperiod = 0;
 }
 
-void RulesEvery50ms()
+void RulesEvery50ms(void)
 {
   if (Settings.rule_enabled) {  // Any rule enabled
     char json_event[120];
@@ -397,6 +401,16 @@ void RulesEvery50ms()
         }
       }
       rules_old_power = rules_new_power;
+    }
+    else if (rules_old_dimm != Settings.light_dimmer) {
+      if (rules_old_dimm != -1) {
+        snprintf_P(json_event, sizeof(json_event), PSTR("{\"Dimmer\":{\"State\":%d}}"), Settings.light_dimmer);
+      } else {
+        // Boot time DIMMER VALUE
+        snprintf_P(json_event, sizeof(json_event), PSTR("{\"Dimmer\":{\"Boot\":%d}}"), Settings.light_dimmer);
+      }
+      RulesProcessEvent(json_event);
+      rules_old_dimm = Settings.light_dimmer;
     }
     else if (event_data[0]) {
       char *event;
@@ -442,23 +456,25 @@ void RulesEvery50ms()
   }
 }
 
-void RulesEvery100ms()
+uint8_t rules_xsns_index = 0;
+
+void RulesEvery100ms(void)
 {
   if (Settings.rule_enabled && (uptime > 4)) {  // Any rule enabled and allow 4 seconds start-up time for sensors (#3811)
     mqtt_data[0] = '\0';
     int tele_period_save = tele_period;
-    tele_period = 2;                 // Do not allow HA updates during next function call
-    XsnsNextCall(FUNC_JSON_APPEND);  // ,"INA219":{"Voltage":4.494,"Current":0.020,"Power":0.089}
+    tele_period = 2;                                   // Do not allow HA updates during next function call
+    XsnsNextCall(FUNC_JSON_APPEND, rules_xsns_index);  // ,"INA219":{"Voltage":4.494,"Current":0.020,"Power":0.089}
     tele_period = tele_period_save;
     if (strlen(mqtt_data)) {
-      mqtt_data[0] = '{';            // {"INA219":{"Voltage":4.494,"Current":0.020,"Power":0.089}
+      mqtt_data[0] = '{';                              // {"INA219":{"Voltage":4.494,"Current":0.020,"Power":0.089}
       snprintf_P(mqtt_data, sizeof(mqtt_data), PSTR("%s}"), mqtt_data);
       RulesProcess();
     }
   }
 }
 
-void RulesEverySecond()
+void RulesEverySecond(void)
 {
   if (Settings.rule_enabled) {  // Any rule enabled
     char json_event[120];
@@ -482,19 +498,19 @@ void RulesEverySecond()
   }
 }
 
-void RulesSetPower()
+void RulesSetPower(void)
 {
   rules_new_power = XdrvMailbox.index;
 }
 
-void RulesTeleperiod()
+void RulesTeleperiod(void)
 {
   rules_teleperiod = 1;
   RulesProcess();
   rules_teleperiod = 0;
 }
 
-boolean RulesCommand()
+boolean RulesCommand(void)
 {
   char command[CMDSZ];
   boolean serviced = true;
@@ -578,24 +594,30 @@ boolean RulesCommand()
     }
     snprintf_P(mqtt_data, sizeof(mqtt_data), S_JSON_COMMAND_INDEX_SVALUE, command, index, Settings.mems[index -1]);
   }
+  else if (CMND_CALC_RESOLUTION == command_code) {
+    if ((XdrvMailbox.payload >= 0) && (XdrvMailbox.payload <= 7)) {
+      Settings.flag2.calc_resolution = XdrvMailbox.payload;
+    }
+    snprintf_P(mqtt_data, sizeof(mqtt_data), S_JSON_COMMAND_NVALUE, command, Settings.flag2.calc_resolution);
+  }
   else if ((CMND_ADD == command_code) && (index > 0) && (index <= MAX_RULE_VARS)) {
     if (XdrvMailbox.data_len > 0) {
       double tempvar = CharToDouble(vars[index -1]) + CharToDouble(XdrvMailbox.data);
-      dtostrfd(tempvar, 2, vars[index -1]);
+      dtostrfd(tempvar, Settings.flag2.calc_resolution, vars[index -1]);
     }
     snprintf_P(mqtt_data, sizeof(mqtt_data), S_JSON_COMMAND_INDEX_SVALUE, command, index, vars[index -1]);
   }
   else if ((CMND_SUB == command_code) && (index > 0) && (index <= MAX_RULE_VARS)) {
     if (XdrvMailbox.data_len > 0) {
       double tempvar = CharToDouble(vars[index -1]) - CharToDouble(XdrvMailbox.data);
-      dtostrfd(tempvar, 2, vars[index -1]);
+      dtostrfd(tempvar, Settings.flag2.calc_resolution, vars[index -1]);
     }
     snprintf_P(mqtt_data, sizeof(mqtt_data), S_JSON_COMMAND_INDEX_SVALUE, command, index, vars[index -1]);
   }
   else if ((CMND_MULT == command_code) && (index > 0) && (index <= MAX_RULE_VARS)) {
     if (XdrvMailbox.data_len > 0) {
       double tempvar = CharToDouble(vars[index -1]) * CharToDouble(XdrvMailbox.data);
-      dtostrfd(tempvar, 2, vars[index -1]);
+      dtostrfd(tempvar, Settings.flag2.calc_resolution, vars[index -1]);
     }
     snprintf_P(mqtt_data, sizeof(mqtt_data), S_JSON_COMMAND_INDEX_SVALUE, command, index, vars[index -1]);
   }
@@ -610,7 +632,7 @@ boolean RulesCommand()
         double toLow = CharToDouble(subStr(sub_string, XdrvMailbox.data, ",", 4));
         double toHigh = CharToDouble(subStr(sub_string, XdrvMailbox.data, ",", 5));
         double value = map_double(valueIN, fromLow, fromHigh, toLow, toHigh);
-        dtostrfd(value, 2, vars[index -1]);
+        dtostrfd(value, Settings.flag2.calc_resolution, vars[index -1]);
       }
     }
     snprintf_P(mqtt_data, sizeof(mqtt_data), S_JSON_COMMAND_INDEX_SVALUE, command, index, vars[index -1]);
@@ -628,8 +650,6 @@ double map_double(double x, double in_min, double in_max, double out_min, double
 /*********************************************************************************************\
  * Interface
 \*********************************************************************************************/
-
-#define XDRV_10
 
 boolean Xdrv10(byte function)
 {

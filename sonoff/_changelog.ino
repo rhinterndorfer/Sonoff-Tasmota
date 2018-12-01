@@ -1,8 +1,173 @@
-/* 6.2.1.9 20180928
+/* 6.3.0.15 20181201
+ * Removed command SetOption36 (#4497)
+ * Add command SetOption60 0/1 to select dynamic sleep (0) or sleep (1) (#4497)
+ *
+ * 6.3.0.14 20181127
+ * Add Command CalcRes to set number of decimals (0 - 7) used in commands ADD, SUB, MULT and SCALE (#4420)
+ * Add support for SM Smart Wifi Dimmer PS-16-DZ (#4465)
+ * Move some static (serial) buffers to dynamic buffers
+ * Update display and epaper drivers
+ * Fix intermittent Pzem sensor energy overflow calculation error
+ * Add support for Teckin US Power Socket with Energy Monitoring (#4481)
+ *
+ * 6.3.0.13 20181126
+ * Add command SetOption59 0/1 to change state topic from tele/STATE to stat/RESULT (#4450)
+ * Fix WifiManager functionality on initial installation (#4433)
+ *
+ * 6.3.0.12 20181122
+ * Remove delays introduced in 6.3.0.11 (#4233)
+ * Add additional start-up delay during initial wifi connection
+ * Add support for I2C MGC3130 Electric Field Effect sensor by Christian Baars (#3774, #4404)
+ * Add initial support for Hass sensor discovery (#4380)
+ * Fix possible strncat buffer overflows
+ * Fix MqttRetry values above 255 seconds (#4424)
+ * Increase webui refresh time delay for Save Settings and local OTA Upload (#4423)
+ * Add CPU average load to state message (#4431)
+ *
+ * 6.3.0.11 20181120
+ * Add delays removed in 6.3.0.9 (#4233)
+ * Allow user definition of defines WIFI_RSSI_THRESHOLD (default 10) and WIFI_RESCAN_MINUTES (default 44)
+ * Add support for Fujitsu HVac and IrRemote (#4387)
+ * Add command SetOption58 0/1 to enable IR raw data info in JSON message (#2116)
+ * Add command IRSend <frequency>|0,<rawdata1>,<rawdata2>,.. to allow raw data transmission (#2116)
+ * Change default WIFI_CONFIG_TOOL from WIFI_WAIT to WIFI_RETRY in my_user_config.h (#4400)
+ *
+ * 6.3.0.10 20181118
+ * Add command SetOption36 0..255 milliseconds (50 default) to tune main loop dynamic delay
+ * Add support for LG HVac and IrRemote (#4377)
+ * Add command SetOption56 0/1 to enable wifi network scan and select highest RSSI (#3173)
+ * Add command SetOption57 0/1 to enable wifi network re-scan every 44 minutes with a rssi threshold of 10 to select highest RSSI (#3173)
+ * Fix MQTT connection error after restart
+ * Fix wifi re-scan connection baseline
+ *
+ * 6.3.0.9 20181118
+ * Moved command SetSensorXX to debugging driver freeing user code space
+ * Add dynamic delay to main loop providing time for wifi background tasks
+ * Remove delays introduced in 6.3.0.1 (#4233)
+ *
+ * 6.3.0.8 20181115
+ * Stop enforcing flashmode dout but it is still mandatory
+ * Moved bootcount update (being first) flash write to 10 seconds after restart
+ * Add support for Armtronix dimmers. See wiki for info (#4321)
+ *
+ * 6.3.0.7 20181111
+ * Fix wifi connection errors using wifi disconnect and ESP.reset instead of ESP.restart
+ * Fix Sonoff Pow R2 and Sonoff S31 Serial interface hang caused by Sonoff Basic R2 driver delay implementation (and possibly core bug)
+ * Change command WebSend Host header field from IP address to hostname (#4331)
+ * Add to command WebSend option to send a direct path when command starts with a slash (#4329)
+ * Consolidate LTrim into Trim
+ * Increase log buffer size from 512 to 520 to accommodate http sensor data (#4354)
+ *
+ * 6.3.0.6 20181110
+ * Change GUI Configure Module by using AJAX for data fetch to cut page size (and memory use) by 40%
+ *   In case of web page errors clear your browser cache or do Page Reload (F5 or Ctrl+R)
+ *
+ * 6.3.0.5 20181107
+ * Add code image and optional commit number to version
+ * Add support for Gosund SP1 v2.3 Power Socket with Energy Monitoring (#4297)
+ * Fix shelly2 ghost switching caused by lack of pull-up inputs (#4255)
+ *
+ * 6.3.0.4 20181106
+ * Add command SetSensorXX 0/1 to disable/re-enable compiled xsns_XX_sensor.ino driver
+ *
+ * 6.3.0.3 20181105
+ * Fix hardware serial pin configuration. To keep using hardware serial swap current Rx/Tx pin configuration only (#4280)
+ * Add more strict checks for GPIO selections
+ * Add optional hardware serial when GPIO13(Rx) and GPIO15(Tx) are selected removing hardware serial from GPIO01(Tx) and GPIO03(Rx) (#4288)
+ * Bump TasmotaSerial version from 2.1.0 to 2.2.0
+ *
+ * 6.3.0.2 20181101
+ * Add minutes to commands Timezone to allow all possible world timezones
+ * Add command SetOption24 0/1 to select pressure unit as hPa or mmHg (#4241)
+ *
+ * 6.3.0.1 20181031
+ * Add wifi status to Tuya (#4221)
+ * Add default sleep 1 to sonoff-basic to lower energy consumption (#4217)
+ * Fix unintended function overload of WifiState
+ * Add delays to reduce CPU usage at boot time (#4233)
+ *
+ * 6.3.0 20181030
+ * Release of v6.3.0
+ *
+ * 6.2.1.20 20181028
+ * Add command SetOption35 0..255 (seconds) to delay mDNS initialization to control possible Wifi connect problems
+ * Add command SetOption53 0/1 to toggle gui display of Hostname and IP address (#1006, #2091)
+ * Add token %hostname% to command FullTopic (#3018)
+ * Add support for two BMP/BME sensors (#4195)
+ * Add TotalStartTime to Energy JSON message (#3971)
+ *
+ * 6.2.1.19 20181023
+ * Fix header file execution order by renaming user_config.h to my_user_config.h
+ * Fix invalid JSON floating point result from nan (Not a Number) and inf (Infinity) into null (#4147)
+ * Fix rule mqtt#connected trigger when mqtt is disabled (#4149)
+ * Initial release of RF transceiving using library RcSwitch (#2702)
+ * Change default OTA Url to http://thehackbox.org/tasmota/release/sonoff.bin (#4170)
+ * Add Tuya Software Serial to support additional Tuya configurations (#4178)
+ * Add define USE_BASIC for selecting image sonoff-basic without most sensors
+ *
+ * 6.2.1.18 20181019
+ * Add more API callbacks and document API.md
+ * Add support for La Crosse TX20 Anemometer (#2654, #3146)
+ * Add optional HX711 scale interface to web GUI demonstrating easy GUI plug-in
+ * Resize HX711 weight_item field from 16 bit to 32 bit
+ *
+ * 6.2.1.17 20181017
+ * Enable updated non-blocking PubSubClient as default MQTT client
+ * Update TasmotaModbus and TasmotaSerial libraries for support of serial 8N2 communication
+ * Add support for Pzem-003/017 DC Energy monitoring module (#3694)
+ * Change support for Pzem-014/016 AC Energy monitoring module (#3694)
+ * Rewrite Tuya Dimmer code
+ *
+ * 6.2.1.16 20181015
+ * Add TasmotaModbus library for very basic modbus wrapper for TasmotaSerial
+ * Change xsns_17_senseair.ino to use TasmotaModbus library
+ * Fix xnrg_05_pzem2.ino for PZEM-014/016 support using TasmotaModbus library (#3694)
+ * Fix RfRaw and SerialSend5 regression from 6.2.1.15 (#4072)
+ * Fix Sonoff Bridge RfRaw receive (#4080, #4085)
+ * Add support for Tuya Dimmer (#469, #4075)
+ * Fix possible wifi connection error (#4044, #4083)
+ * Update PubSubClient Mqtt library to non-blocking EspEasy version
+ *
+ * 6.2.1.15 20181012
+ * Fix Color Temperature slider functionality regression from 6.2.1.5 (#4037)
+ * Add auto reload of main web page to some web restarts
+ * Add whitespace removal from RfRaw and SerialSend5 (#4020)
+ * Add commands Reset 4 (reset to defaults but keep wifi params) and Reset 5 (as reset 4 and also erase flash) (#4061)
+ *
+ * 6.2.1.14 20181010
+ * Rewrite Webserver page handler for easier extension (thx to Adrian Scillato)
+ * Add support for DS3231 Real Time Clock
+ * Add support for HX711 Load Cell
+ * Add command WeightRes 0..3 to control display of decimals for kilogram
+ *
+ * 6.2.1.13 20181008
+ * Change default Mqtt client library from PubSubClient to non-blocking ArduinoMqtt by Joel Gaehwiler
+ * Add command WebRefresh 1000..10000 to control web page refresh in milliseconds. Default is 2345
+ *
+ * 6.2.1.12 20181007
+ * Fix Shelly1 switchmode 3 and 4 when using pushbutton (#3989)
+ * Add support for CSL Aplic WDP 303075 Power Socket with Energy Monitoring (#3991, #3996)
+ *
+ * 6.2.1.11 20181002
+ * Remove support for MQTT Client based on esp-mqtt-arduino by #define MQTT_LIBRARY_TYPE MQTT_ESPMQTTARDUINO
+ * Add support for MQTT Client based on lwmqtt to be selected by #define MQTT_LIBRARY_TYPE MQTT_ARDUINOMQTT
+ * Change MQTT_ARDUINOMQTT command timeout from 1 to 10 seconds
+ * Add Hebrew language file (#3960)
+ * Fix exception when wrong Domoticz JSON message is received (#3963)
+ *
+ * 6.2.1.10 20180930
+ * Add command RGBWWTable to support color calibration (#3933)
+ * Add support for Michael Haustein ESP Switch
+ * Add support for EXS Relay V5.0 (#3810)
+ * Fix timer offset -00:00 causing 12:00 hour offset (#3923)
+ * Add support for OBI Power Socket (#1988, #3944)
+ * Add support for Teckin Power Socket with Energy Monitoring (#3950)
+ *
+ * 6.2.1.9 20180928
  * Add Apparent Power and Reactive Power to Energy Monitoring devices (#251)
  * Add RF Receiver control to module MagicHome to be used on Arilux LC10 (#3792)
  * Fix I2CScan invalid JSON error message (#3925)
- * Fix invalid configuration restores and decode_config.py crc error when savedata = 0 (#3918) 
+ * Fix invalid configuration restores and decode_config.py crc error when savedata = 0 (#3918)
  *
  * 6.2.1.8 20180926
  * Change status JSON message providing more switch and retain information

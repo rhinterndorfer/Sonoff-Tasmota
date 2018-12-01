@@ -48,15 +48,9 @@ byte          Settings.knx_CB_param[MAX_KNX_CB]     Type of Output (set relay, t
 
 \*********************************************************************************************/
 
-#include <esp-knx-ip.h>         // KNX Library
-                                //   Note: Inside the <esp-knx-ip.h> file there is a //#define USE_ASYNC_UDP    // UDP WIFI Library Selection for Multicast
-                                //         If commented out, the esp-knx-ip library will use WIFI_UDP Library that is compatible with ESP8266 Library Version 2.3.0 and up
-                                //         If not commented out, the esp-knx-ip library will use ESPAsyncUDP Library that is compatible with ESP8266 Library Version 2.4.0 and up
-                                //            The ESPAsyncUDP Library have a more reliable multicast communication
-                                //            Please Use it with Patch (https://github.com/me-no-dev/ESPAsyncUDP/pull/21) )
+#define XDRV_11  11
 
-//void KNX_CB_Action(message_t const &msg, void *arg);  // Define function (action callback) to be called by the Esp-KNX-IP Library
-                                                      // when an action is requested by another KNX Device
+#include <esp-knx-ip.h>         // KNX Library
 
 address_t KNX_physs_addr;  // Physical KNX address of this device
 address_t KNX_addr;        // KNX Address converter variable
@@ -398,7 +392,7 @@ void KNX_DEL_CB( byte CBnum )
 }
 
 
-bool KNX_CONFIG_NOT_MATCH()
+bool KNX_CONFIG_NOT_MATCH(void)
 {
   // Check for configured parameters that the device does not have (module changed)
   for (byte i = 0; i < KNX_MAX_device_param; ++i)
@@ -448,7 +442,7 @@ bool KNX_CONFIG_NOT_MATCH()
 }
 
 
-void KNXStart()
+void KNXStart(void)
 {
   knx.start(nullptr);
   snprintf_P(log_data, sizeof(log_data), PSTR(D_LOG_KNX D_START));
@@ -456,7 +450,7 @@ void KNXStart()
 }
 
 
-void KNX_INIT()
+void KNX_INIT(void)
 {
   // Check for incompatible config
   if (Settings.knx_GA_registered > MAX_KNX_GA) { Settings.knx_GA_registered = MAX_KNX_GA; }
@@ -749,6 +743,9 @@ void KnxSensor(byte sensor_type, float value)
 #ifdef USE_KNX_WEB_MENU
 const char S_CONFIGURE_KNX[] PROGMEM = D_CONFIGURE_KNX;
 
+const char HTTP_BTN_MENU_KNX[] PROGMEM =
+  "<br/><form action='kn' method='get'><button>" D_CONFIGURE_KNX "</button></form>";
+
 const char HTTP_FORM_KNX[] PROGMEM =
   "<fieldset><legend style='text-align:left;'><b>&nbsp;" D_KNX_PARAMETERS "&nbsp;</b></legend><form method='post' action='kn'>"
   "<br/><center>"
@@ -784,7 +781,6 @@ const char HTTP_FORM_KNX_ADD_BTN[] PROGMEM =
 
 const char HTTP_FORM_KNX_ADD_TABLE_ROW[] PROGMEM =
   "<tr><td><b>{optex} -> GAfnum / GAarea / GAfdef </b></td>"
-//  "<td><button type='submit' name='btn_del_ga' value='{opval}' style='background-color: #eb1e1e;'> " D_DELETE " </button></td></tr>";
   "<td><button type='submit' name='btn_del_ga' value='{opval}' class='button bred'> " D_DELETE " </button></td></tr>";
 
 const char HTTP_FORM_KNX3[] PROGMEM =
@@ -797,11 +793,9 @@ const char HTTP_FORM_KNX4[] PROGMEM =
 
 const char HTTP_FORM_KNX_ADD_TABLE_ROW2[] PROGMEM =
   "<tr><td><b>GAfnum / GAarea / GAfdef -> {optex}</b></td>"
-//  "<td><button type='submit' name='btn_del_cb' value='{opval}' style='background-color: #eb1e1e;'> " D_DELETE " </button></td></tr>";
   "<td><button type='submit' name='btn_del_cb' value='{opval}' class='button bred'> " D_DELETE " </button></td></tr>";
 
-
-void HandleKNXConfiguration()
+void HandleKNXConfiguration(void)
 {
   if (HttpUser()) { return; }
   if (!WebAuthenticate()) { return WebServer->requestAuthentication(); }
@@ -971,7 +965,7 @@ void HandleKNXConfiguration()
       }
     }
     page += F("</table></center></fieldset>");
-    page += F("<br/><button name='save' type='submit'>" D_SAVE "</button></form></fieldset>");
+    page += F("<br/><button name='save' type='submit' class='button bgrn'>" D_SAVE "</button></form></fieldset>");
     page += FPSTR(HTTP_BTN_CONF);
 
     page.replace( F("</script>"),
@@ -1000,7 +994,7 @@ void HandleKNXConfiguration()
 }
 
 
-void KNX_Save_Settings()
+void KNX_Save_Settings(void)
 {
   String stmp;
   address_t KNX_addr;
@@ -1053,7 +1047,7 @@ void KNX_Save_Settings()
 #endif  // USE_WEBSERVER
 
 
-boolean KnxCommand()
+boolean KnxCommand(void)
 {
   char command[CMDSZ];
   uint8_t index = XdrvMailbox.index;
@@ -1286,8 +1280,6 @@ boolean KnxCommand()
  * Interface
 \*********************************************************************************************/
 
-#define XDRV_11
-
 boolean Xdrv11(byte function)
 {
   boolean result = false;
@@ -1295,8 +1287,18 @@ boolean Xdrv11(byte function)
       case FUNC_PRE_INIT:
         KNX_INIT();
         break;
+#ifdef USE_WEBSERVER
+#ifdef USE_KNX_WEB_MENU
+      case FUNC_WEB_ADD_BUTTON:
+        strncat_P(mqtt_data, HTTP_BTN_MENU_KNX, sizeof(mqtt_data) - strlen(mqtt_data) -1);
+        break;
+      case FUNC_WEB_ADD_HANDLER:
+        WebServer->on("/kn", HandleKNXConfiguration);
+        break;
+#endif // USE_KNX_WEB_MENU
+#endif  // USE_WEBSERVER
       case FUNC_LOOP:
-        knx.loop();  // Process knx events
+        if (!global_state.wifi_down) { knx.loop(); }  // Process knx events
         break;
       case FUNC_EVERY_50_MSECOND:
         if (toggle_inhibit) {

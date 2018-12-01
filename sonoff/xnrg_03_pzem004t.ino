@@ -25,7 +25,7 @@
  * Source: Victor Ferrer https://github.com/vicfergar/Sonoff-MQTT-OTA-Arduino
  * Based on: PZEM004T library https://github.com/olehs/PZEM004T
  *
- * Hardware Serial will be selected if GPIO1 = [PZEM Rx] and [GPIO3 = PZEM Tx]
+ * Hardware Serial will be selected if GPIO1 = [63 PZEM004 Rx] and GPIO3 = [62 PZEM0XX Tx]
 \*********************************************************************************************/
 
 #define XNRG_03                  3
@@ -87,7 +87,7 @@ void PzemSend(uint8_t cmd)
   PzemSerial->write(bytes, sizeof(pzem));
 }
 
-bool PzemReceiveReady()
+bool PzemReceiveReady(void)
 {
   return PzemSerial->available() >= (int)sizeof(PZEMCommand);
 }
@@ -162,7 +162,7 @@ const uint8_t pzem_responses[] { RESP_SET_ADDRESS, RESP_VOLTAGE, RESP_CURRENT, R
 uint8_t pzem_read_state = 0;
 uint8_t pzem_sendRetry = 0;
 
-void PzemEvery200ms()
+void PzemEvery200ms(void)
 {
   bool data_ready = PzemReceiveReady();
 
@@ -181,8 +181,10 @@ void PzemEvery200ms()
           break;
         case 4:  // Total energy as 99999Wh
           if (!energy_start || (value < energy_start)) energy_start = value;  // Init after restart and hanlde roll-over if any
-          energy_kWhtoday += (value - energy_start) * 100;
-          energy_start = value;
+          if (value != energy_start) {
+            energy_kWhtoday += (unsigned long)((value - energy_start) * 100);
+            energy_start = value;
+          }
           EnergyUpdateToday();
           break;
       }
@@ -200,10 +202,10 @@ void PzemEvery200ms()
   }
 }
 
-void PzemSnsInit()
+void PzemSnsInit(void)
 {
   // Software serial init needs to be done here as earlier (serial) interrupts may lead to Exceptions
-  PzemSerial = new TasmotaSerial(pin[GPIO_PZEM_RX], pin[GPIO_PZEM_TX], 1);
+  PzemSerial = new TasmotaSerial(pin[GPIO_PZEM004_RX], pin[GPIO_PZEM0XX_TX], 1);
   if (PzemSerial->begin(9600)) {
     if (PzemSerial->hardwareSerial()) { ClaimSerial(); }
   } else {
@@ -211,10 +213,10 @@ void PzemSnsInit()
   }
 }
 
-void PzemDrvInit()
+void PzemDrvInit(void)
 {
   if (!energy_flg) {
-    if ((pin[GPIO_PZEM_RX] < 99) && (pin[GPIO_PZEM_TX] < 99)) {  // Any device with a Pzem004T
+    if ((pin[GPIO_PZEM004_RX] < 99) && (pin[GPIO_PZEM0XX_TX] < 99)) {  // Any device with a Pzem004T
       energy_flg = XNRG_03;
     }
   }
